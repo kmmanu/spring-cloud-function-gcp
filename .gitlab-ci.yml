@@ -1,0 +1,22 @@
+stages:
+  - build
+  - deploy
+
+build-spring-cloud-function:
+  image: maven:3.6-openjdk-8
+  stage: build
+  script:
+    - mvn clean install
+    - echo "$CI_PIPELINE_ID"
+  artifacts:
+    expire_in: 1 days
+    paths:
+      - target/deploy
+
+deploy_dev:
+  image: google/cloud-sdk
+  stage: deploy
+  script:
+    - echo "$CF_SERVICE_ACCOUNT" > /tmp/account.json
+    - gcloud auth activate-service-account --key-file=/tmp/account.json
+    - gcloud functions deploy spring-cloud-function --entry-point org.springframework.cloud.function.adapter.gcp.GcfJarLauncher --runtime java11 --trigger-topic my-functions-topic --service-account "$SERVICE_ACCOUNT_NAME" --stage-bucket "$STAGE_BUCKET" --source target/deploy --region us-central1 --project "$PROJECT_NAME"
